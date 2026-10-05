@@ -1,0 +1,14 @@
+{
+  "name": "liqa-platform",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {"node": ">=22.0.0"},
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "test": "node --test tests/*.test.mjs",
+    "check": "node --check lib/offices.mjs && npm test"
+  },
+  "dependencies": {"next": "16.3.0", "react": "19.2.8", "react-dom": "19.2.8"}
+}
