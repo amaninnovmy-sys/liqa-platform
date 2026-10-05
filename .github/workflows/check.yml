@@ -2,7 +2,7 @@ name: LIQA checks
 on:
   push:
     branches: [main]
-    paths: ['app/**', 'components/**', 'lib/**', 'tests/**', 'public/**', 'package*.json', 'next.config.mjs', '.github/workflows/check.yml']
+    paths: ['app/**', 'components/**', 'lib/**', 'tests/**', 'public/**', 'database/**', 'package*.json', 'next.config.mjs', 'playwright.config.mjs', '.github/workflows/check.yml']
   pull_request:
   workflow_dispatch:
 permissions:
@@ -13,21 +13,29 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 12
+    timeout-minutes: 20
     env:
       NEXT_TELEMETRY_DISABLED: '1'
     steps:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
+      - name: Package reviewed source (no credentials or user records)
+        run: git archive --format=tar.gz HEAD -o liqa-source.tar.gz
+      - uses: actions/upload-artifact@v4
+        with:
+          name: liqa-source
+          path: liqa-source.tar.gz
+          retention-days: 7
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Install pinned direct dependencies
-        run: npm install --ignore-scripts
+      - name: Install dependencies
+        run: |
+          if [ -f package-lock.json ]; then npm ci --ignore-scripts; else npm install --ignore-scripts; fi
       - name: Domain checks
         run: npm run check
-      - name: Build static demo
+      - name: Build application
         run: npm run build
       - name: Export preview and resolved dependency lock
         uses: actions/upload-artifact@v4
