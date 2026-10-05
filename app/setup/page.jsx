@@ -1,0 +1,3 @@
+import Link from 'next/link';
+import {Brand} from '../../components/icons';
+export default function Setup(){return <main className="landing"><section className="landing-panel" style={{maxWidth:700}}><div className="landing-top"><Brand/><h1>بيئة التشغيل قيد التجهيز</h1><p>لم يُفعّل الاتصال بقاعدة بيانات لِقا بعد، أو تعذر التحقق منه.</p></div><div className="landing-body"><p>مسارا الأدمن والمسوق التشغيليان لا يعرضان بيانات وهمية عند غياب الاتصال. ما زالت نسخة العرض متاحة دون بيانات مكاتب حقيقية.</p><div className="role-links"><Link className="role-card" href="/demo/admin/"><h2>عرض لوحة الأدمن</h2></Link><Link className="role-card" href="/demo/marketer/"><h2>عرض لوحة المسوق</h2></Link></div><Link href="/login/">العودة إلى الدخول</Link></div></section></main>}

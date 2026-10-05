@@ -2,7 +2,6 @@ name: LIQA checks
 on:
   push:
     branches: [main]
-    paths: ['app/**', 'components/**', 'lib/**', 'tests/**', 'public/**', 'database/**', 'package*.json', 'next.config.mjs', 'playwright.config.mjs', '.github/workflows/check.yml']
   pull_request:
   workflow_dispatch:
 permissions:
@@ -16,32 +15,55 @@ jobs:
     timeout-minutes: 20
     env:
       NEXT_TELEMETRY_DISABLED: '1'
+      LIQA_BACKEND_ENABLED: 'false'
+      PGPASSWORD: ci_only_password
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: ci_only_password
+          POSTGRES_DB: liqa_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     steps:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
-      - name: Package reviewed source (no credentials or user records)
-        run: git archive --format=tar.gz HEAD -o liqa-source.tar.gz
-      - uses: actions/upload-artifact@v4
-        with:
-          name: liqa-source
-          path: liqa-source.tar.gz
-          retention-days: 7
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Install dependencies
+      - name: Install pinned dependencies
         run: |
           if [ -f package-lock.json ]; then npm ci --ignore-scripts; else npm install --ignore-scripts; fi
-      - name: Domain checks
+      - name: Domain and input tests
         run: npm run check
-      - name: Build application
+      - name: Database isolation and consent tests (disposable service only)
+        run: |
+          psql -h 127.0.0.1 -U postgres -d liqa_test -v ON_ERROR_STOP=1 -f tests/database-bootstrap.sql
+          psql -h 127.0.0.1 -U postgres -d liqa_test -v ON_ERROR_STOP=1 -f database/schema.sql
+          psql -h 127.0.0.1 -U postgres -d liqa_test -v ON_ERROR_STOP=1 -f tests/database-rls.sql
+      - name: Build server application
         run: npm run build
-      - name: Export preview and resolved dependency lock
+      - name: Install test browser
+        run: npx playwright install --with-deps chromium
+      - name: Browser journeys and screenshots
+        run: npm run test:browser
+      - name: Archive source with exact resolved dependencies
+        if: always()
+        run: git archive --format=tar.gz HEAD -o liqa-source.tar.gz
+      - name: Export verification artifacts
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: liqa-demo-build
+          name: liqa-verification
           path: |
-            out/
+            liqa-source.tar.gz
             package-lock.json
+            previews/
+            playwright-report/
+            test-results/
           retention-days: 14

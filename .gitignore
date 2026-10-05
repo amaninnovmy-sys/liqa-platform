@@ -14,3 +14,5 @@ playwright-report/
 test-results/
 private-data/
 uploads/
+previews/
+liqa-source.tar.gz

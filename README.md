@@ -2,51 +2,83 @@
 
 A venture by AMAN Innovation Group — Malaysia.
 
-## Milestone 0.1: interactive interface implementation
+## Milestone 0.2 — protected staff-console foundation
 
-This is the first source-code implementation of the approved participating-office dashboards. It is not the completed production platform.
+The approved Arabic RTL administrator and field-marketer interfaces are preserved.
+There are now distinct demo and operational routes:
 
-- `/`: demo workspace selection.
-- `/admin/`: administrator interface with all sample offices, assignments, interviews, trial oversight, follow-ups, reports and subscription overview.
-- `/marketer/`: field-marketer interface scoped in the UI to assigned sample offices.
+| Route | Purpose |
+| --- | --- |
+| `/` | Entry and demo navigation |
+| `/demo/admin/`, `/demo/marketer/` | Fictitious browser-local demonstration; role switching is not authentication |
+| `/login/` | Supabase email/password sign-in for staff provisioned by an operator |
+| `/admin/`, `/marketer/` | Server-verified staff role and active-status checks |
+| `/api/console/` | Session-scoped reads and individually validated database commands |
+| `/setup/` | Closed/unconfigured state; never silently substitutes demo data |
 
-Implemented: Arabic RTL responsive layouts; registration/editing; duplicate detection; separate contact/research consent; interview records; optional four-question price-sensitivity input; notes; tasks and completion; trial-interest/prototype tracking; administrator-only trial simulation; scoped CSV export with formula escaping; calculated sample KPIs; and a browser-local action log.
+**No dedicated cloud database or deployment has been configured for LIQA yet.**
+Adding this source does not activate login, create staff, send invitations, collect
+payments, or authorize collecting real research data. `LIQA_BACKEND_ENABLED` is
+false by default. Do not reuse another AMAN project's database without approval.
 
-**Proposed test price: SAR 196 per month.** Interest, trial activation and payment remain separate events. The example paid record is fictitious, not actual revenue.
+## Implemented in this source
 
-## Run and test
+- Existing office registration, editing, filters, profiles, notes, interviews,
+  follow-ups, CSV export and reports retained in both interfaces.
+- Operational mode reads from the server and writes one command per transaction;
+  it does not store office records in localStorage or upload browser snapshots.
+- Verified authentication plus active staff membership; no self-assigned admin role.
+- PostgreSQL RLS isolates assigned offices and their child records. Admins can see
+  all offices and assign them. Staff roles are provisioned outside client access.
+- Separate contact consent and research consent; optional ordered four-price input.
+- Optimistic version checks reject stale office edits. Write confirmation is
+  independent of a later dashboard refresh; double-clicks are suppressed.
+- Database-generated audit events; staff cannot insert fabricated payment rows.
+- Request origin, body-size and allowlist validation on mutation APIs.
 
-Use Node.js 22 or newer.
+**Price under test: SAR 196 per month.** Recording trial interest or the start of
+ a pilot does not create an operational broker account or a paid subscription.
+The illustrative 70% / 55% / 20% are not measured findings.
+
+## Run
+
+Node.js 22+:
 
 ```sh
 npm install
+npm run check
 npm run dev
-npm test
 npm run build
+npm run start
 ```
 
-The build is configured to export a static demo into `out/`. GitHub Actions attempts a build and uploads `out/` and the resolved dependency lock when successful. Inspect the actual run status in Actions. Source upload alone does not prove a successful build or deployment.
+This version builds a Node server (`output: standalone`), not a static export.
+See `docs/SETUP.md` before connecting any database. Keep all secrets and `.env.local`
+out of Git. Direct dependency versions are pinned; the CI artifact includes the
+resolved lockfile, which must be committed before release if absent here.
 
-Sixteen pure-domain tests passed locally. They are not server security tests or browser acceptance tests.
+## Verification
 
-## Current boundaries
+`npm run check` runs the pure-domain and request-validation tests.
+`npm run test:browser` runs desktop/mobile browser journeys and captures screenshots.
+GitHub Actions also runs `database/schema.sql` and authorization assertions against
+ a disposable PostgreSQL 17 service with an `auth.uid()` stand-in. This is not a test
+of a live Supabase project's authentication, email delivery or billing integration.
+Inspect the exact PR run and `liqa-verification` artifact for results; source upload
+alone is not a passing build. Never run `tests/database-bootstrap.sql` in Supabase.
 
-Role selection and client filtering are a demo, not authentication or authorization. There is no protected database, cross-device sync, real invitation sending, payment gateway or operational deployment in this milestone. **Do not enter real personal data or payment information.** All sample records are fictitious. Browser storage can be cleared or unavailable.
+## Remaining production gates
 
-The proposed price is visible in the operator dashboard. A separate unanchored participant-facing research flow is still required before formal interviewing; do not show participants the proposed price before their price-sensitivity answers.
+Dedicated approved hosting/data location; managed Auth configuration and staff
+provisioning; real-session end-to-end tests; rate limits and MFA for administrators;
+backup/restore; consent policy review; operational monitoring; real invitations;
+paginated queries beyond the initial 1,000-row safety limit; payment-provider and
+accounting setup. The current API refuses to present capped data as complete.
+No billing gateway or automatic renewal is enabled.
 
-`public/architecture.svg` is a lightweight decorative tone background, not a photograph or a verified office. Approved photographic assets still need a proper production asset pipeline. Fonts are not bundled.
+Approved photography still needs a production asset pipeline. Existing
+`public/architecture.svg` is a decorative background, not a photograph. No fonts
+are bundled. Demo records are fictional and must never be imported as research.
 
-## Files
-
-- `app/`: routes and styles.
-- `components/`: brand/icons and workspace interface.
-- `lib/offices.mjs`: domain rules and synthetic records.
-- `tests/`: Node domain tests.
-- `docs/ROADMAP.md`: remaining production work and acceptance gates.
-
-## Security and ownership
-
-Never commit `.env` files, secrets, personal office/customer records, research recordings, real invoices or payment receipts. Invitations are previews only. The illustrative 70% / 55% / 20% figures are not treated as measured findings.
-
-Copyright AMAN Innovation Group. No open-source license is granted by publishing this repository. `private: true` in `package.json` prevents accidental npm publication; it does not set GitHub visibility.
+Copyright AMAN Innovation Group. Publishing the repository is not an open-source
+license grant.

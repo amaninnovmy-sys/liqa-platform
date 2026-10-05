@@ -1,0 +1,18 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {hasAccess,safeDestination,validateCommand} from '../lib/access.mjs';
+const m={user_id:'00000000-0000-4000-8000-000000000001',role:'marketer',active:true};
+const a={...m,role:'admin'};const id='00000000-0000-4000-8000-000000000099';
+const fields={name:'مكتب اختبار',city:'الرياض',contact:'مسؤول اختبار',assignee:m.user_id};
+test('unknown and disabled roles fail closed',()=>{for(const s of [null,{...m,active:false},{...m,role:'owner'},{...m,active:'true'}])assert.equal(hasAccess(s),false)});
+test('role is never a user-supplied redirect',()=>{assert.equal(safeDestination(m),'/marketer/');assert.equal(safeDestination(a),'/admin/');assert.equal(hasAccess(m,'admin'),false)});
+test('marketer cannot assign a different owner',()=>{const c=validateCommand({action:'create',data:{...fields,assignee:id}},m);assert.equal(c.data.assignee,m.user_id)});
+test('whitelist strips privilege and payment fields',()=>{const c=validateCommand({action:'create',data:{...fields,role:'admin',paid_at:'2026-10-05',created_by:id}},m);assert.equal(c.data.role,undefined);assert.equal(c.data.paid_at,undefined);assert.equal(c.data.created_by,undefined)});
+test('contact consent is opt-in',()=>{assert.equal(validateCommand({action:'create',data:fields},m).data.consent,false)});
+test('phone normalizes Arabic digits',()=>{assert.equal(validateCommand({action:'create',data:{...fields,phone:'٠٥٠١٢٣٤٥٦٧'}},m).data.phone,'+966501234567')});
+test('version required for edits',()=>{assert.throws(()=>validateCommand({action:'edit',officeId:id,data:fields},m));assert.equal(validateCommand({action:'edit',officeId:id,data:{...fields,version:1}},m).data.version,1)});
+test('marketer cannot start trial or submit paid command',()=>{assert.throws(()=>validateCommand({action:'trial',officeId:id},m));assert.throws(()=>validateCommand({action:'paid',officeId:id},a))});
+test('research consent independent from contact consent',()=>{assert.throws(()=>validateCommand({action:'interview',officeId:id,data:{consent:true,workflow:'واتساب'}},m));assert.equal(validateCommand({action:'interview',officeId:id,data:{researchConsent:true,workflow:'واتساب'}},m).data.prices,null)});
+test('incorrect prices rejected rather than silently adjusted',()=>assert.throws(()=>validateCommand({action:'interview',officeId:id,data:{researchConsent:true,workflow:'واتساب',p1:'200',p2:'100',p3:'300',p4:'400'}},m)));
+test('invalid dates and oversized notes rejected',()=>{assert.throws(()=>validateCommand({action:'task',officeId:id,data:{title:'متابعة',due:'2026-02-31'}},m));assert.throws(()=>validateCommand({action:'note',officeId:id,data:{text:'x'.repeat(1201)}},m))});
+test('explicit boolean task state required',()=>{assert.throws(()=>validateCommand({action:'complete',officeId:id,data:{taskId:id,done:'false'}},m));assert.equal(validateCommand({action:'complete',officeId:id,data:{taskId:id,done:false}},m).data.done,false)});
