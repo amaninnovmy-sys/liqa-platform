@@ -1,0 +1,35 @@
+name: Retain verified dependency lock
+on:
+  push:
+    branches: ['feat/secure-office-console']
+    paths: ['.github/workflows/retain-verified-lock.yml']
+permissions:
+  contents: write
+  actions: read
+jobs:
+  retain:
+    if: github.repository == 'amaninnovmy-sys/liqa-platform' && github.ref == 'refs/heads/feat/secure-office-console'
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/secure-office-console
+      - uses: actions/download-artifact@v4
+        with:
+          name: liqa-verification
+          run-id: 37379699842
+          github-token: ${{ github.token }}
+          path: verification
+      - name: Commit only the exact lock already tested
+        shell: bash
+        run: |
+          echo '0a5600cedd80867ec16fdf311e1648415524832a0ac2ef43846fe16a07134bb3  verification/package-lock.json' | sha256sum -c -
+          cp verification/package-lock.json package-lock.json
+          node --input-type=module -e 'import fs from "node:fs"; import assert from "node:assert/strict"; const p=JSON.parse(fs.readFileSync("package.json")); const l=JSON.parse(fs.readFileSync("package-lock.json")).packages[""]; assert.deepEqual(p.dependencies,l.dependencies); assert.deepEqual(p.devDependencies,l.devDependencies);'
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add package-lock.json
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m 'build: lock dependencies to the verified CI installation'
+          git push origin HEAD:feat/secure-office-console
